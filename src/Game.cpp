@@ -1881,59 +1881,6 @@ void Game::Draw() {
   }
 
   // =================================
-  // LANE DIRECTION LABELS (ENEMY SPAWN -> YOUR BASE)
-  // =================================
-  // New players need to know where enemies come from and what they defend.
-  // These float over the spawn portal and the base fortress, projected from
-  // their 3D world positions. Only shown early on (wave 1-3) or while the
-  // tutorial is up so they never clutter the screen later.
-  if ((wave <= 3 || showTutorial) && !gameOver && !victory) {
-    float pulse = 0.5f + 0.5f * sinf(globalTime * 2.5f);
-
-    // Spawn portal at path.front() (top-left). Nudge the label inward so it
-    // never clips off the left edge.
-    Vector3 spawnW = Renderer3D::To3D(path.front(), 4.9f);
-    Vector2 spawnS = GetWorldToScreen(spawnW, camera);
-    float sx = spawnS.x;
-    if (sx < 130.0f) sx = 130.0f; // keep on-screen
-    const char *spawnText = "MUSUH MUNCUL DI SINI";
-    int sw = MeasureText(spawnText, 14);
-    DrawRectangleRounded(
-        Rectangle{sx - sw * 0.5f - 12, spawnS.y - 24, (float)sw + 24, 30},
-        0.35f, 6, Fade(Color{120, 30, 60, 255}, 0.85f));
-    DrawRectangleRoundedLinesEx(
-        Rectangle{sx - sw * 0.5f - 12, spawnS.y - 24, (float)sw + 24, 30},
-        0.35f, 6, 1.5f, Fade(Color{239, 68, 68, 255}, 0.6f + 0.4f * pulse));
-    DrawText(spawnText, (int)(sx - sw * 0.5f), (int)spawnS.y - 17, 14,
-             Color{255, 200, 210, 255});
-    // Down arrow pointing at the portal
-    Vector2 arrowTip{sx, spawnS.y + 6};
-    DrawTriangle(arrowTip, Vector2{sx - 8, spawnS.y + 24},
-                 Vector2{sx + 8, spawnS.y + 24},
-                 Fade(Color{239, 68, 68, 255}, 0.6f + 0.4f * pulse));
-
-    // Base fortress at path.back() (right). Keep the label clear of the right
-    // edge and of the top HUD.
-    Vector3 baseW = Renderer3D::To3D(path.back(), 7.0f);
-    Vector2 baseS = GetWorldToScreen(baseW, camera);
-    float bx = baseS.x;
-    const char *baseText = "BASE KAMU";
-    int bw = MeasureText(baseText, 14);
-    if (bx + bw * 0.5f + 12 > screenWidth - 8)
-      bx = screenWidth - 8 - bw * 0.5f - 12;
-    float by = baseS.y;
-    if (by - 24 < 74.0f) by = 74.0f + 24; // below top HUD
-    DrawRectangleRounded(
-        Rectangle{bx - bw * 0.5f - 12, by - 24, (float)bw + 24, 30}, 0.35f, 6,
-        Fade(Color{10, 45, 60, 255}, 0.85f));
-    DrawRectangleRoundedLinesEx(
-        Rectangle{bx - bw * 0.5f - 12, by - 24, (float)bw + 24, 30}, 0.35f, 6,
-        1.5f, Fade(Color{0, 200, 240, 255}, 0.6f + 0.4f * pulse));
-    DrawText(baseText, (int)(bx - bw * 0.5f), (int)by - 17, 14,
-             Color{190, 240, 255, 255});
-  }
-
-  // =================================
   // BILLBOARD: FLOATING TEXTS (projected from 3D to screen)
   // =================================
   for (const FloatingText& ft : floatingTexts) {
