@@ -16,12 +16,12 @@ static Font g_uiFont{};
 static Font g_uiFontBold{};
 static bool g_uiFontReady = false;
 
-// Font sizes were authored for raylib's default font, which renders smaller
-// than a typical TTF at the same nominal height. A modest upscale keeps the
-// original layout while making text clearly readable.
-static constexpr float UI_FONT_SCALE = 1.18f;
-// Rajdhani is condensed; a little extra letter spacing improves legibility.
-static constexpr float UI_FONT_SPACING = 0.5f;
+// Font sizes were authored for raylib's default font. Barlow at the same
+// nominal height is a touch smaller/cleaner, so a slight upscale keeps the
+// original layout while making text readable.
+static constexpr float UI_FONT_SCALE = 1.10f;
+// A little extra letter spacing improves legibility at small sizes.
+static constexpr float UI_FONT_SPACING = 0.6f;
 
 int UIMeasureText(const char *text, int fontSize) {
   if (!text || fontSize <= 0) return 0;
@@ -273,13 +273,16 @@ Game::Game()
   SetExitKey(KEY_NULL);
   SetTargetFPS(60);
 
-  // Load the custom UI font (Rajdhani, SIL OFL). Loading at a high base size
-  // and down/up-scaling gives crisp text at every resolution. If the files are
-  // missing the game silently falls back to raylib's built-in font.
+  // Load the custom UI font (Rajdhani, SIL OFL). If the files are missing the
+  // game silently falls back to raylib's built-in font.
   {
-    // Base size large enough that downscaling stays sharp; raylib renders the
-    // atlas once and scales with bilinear filtering.
-    const int baseSize = 64;
+    // The atlas is generated at a size close to the largest on-screen usage.
+    // Over-scaling a much larger atlas down (e.g. 64 -> 17 px) with texture
+    // filtering samples neighbouring glyphs in the tightly packed atlas and
+    // produces the "striped"/broken glyphs, so keep it modest.
+    // Base size close to the largest on-screen usage. Downscaling is done with
+    // bilinear filtering; loading far above the render size caused artefacts.
+    const int baseSize = 48;
     int codepoints = 0;
     int *cp = LoadCodepoints(
         " !\"#$%&'()*+,-./0123456789:;<=>?@"
@@ -288,21 +291,32 @@ Game::Game()
         "×÷→←↑↓•°",
         &codepoints);
 
-    if (FileExists("src/fonts/Rajdhani-Regular.ttf")) {
-      uiFont = LoadFontEx("src/fonts/Rajdhani-Regular.ttf", baseSize, cp, codepoints);
-      g_uiFont = uiFont;
-      g_uiFontReady = true;
-    } else if (FileExists("fonts/Rajdhani-Regular.ttf")) {
-      uiFont = LoadFontEx("fonts/Rajdhani-Regular.ttf", baseSize, cp, codepoints);
-      g_uiFont = uiFont;
-      g_uiFontReady = true;
+    // Barlow (SIL OFL): geometric sans with good legibility at small sizes,
+    // unlike the thin/condensed Rajdhani that was hard to read.
+    const char *regularCandidates[] = {
+        "src/fonts/Barlow-SemiBold.ttf", "fonts/Barlow-SemiBold.ttf",
+        "src/fonts/Barlow-Regular.ttf", "fonts/Barlow-Regular.ttf"};
+    for (const char *p : regularCandidates) {
+      if (FileExists(p)) {
+        uiFont = LoadFontEx(p, baseSize, cp, codepoints);
+        g_uiFont = uiFont;
+        g_uiFontReady = true;
+        break;
+      }
     }
-    if (FileExists("src/fonts/Rajdhani-Bold.ttf")) {
-      uiFontBold = LoadFontEx("src/fonts/Rajdhani-Bold.ttf", baseSize, cp, codepoints);
-    } else if (FileExists("fonts/Rajdhani-Bold.ttf")) {
-      uiFontBold = LoadFontEx("fonts/Rajdhani-Bold.ttf", baseSize, cp, codepoints);
+    const char *boldCandidates[] = {"src/fonts/Barlow-Bold.ttf",
+                                    "fonts/Barlow-Bold.ttf"};
+    for (const char *p : boldCandidates) {
+      if (FileExists(p)) {
+        uiFontBold = LoadFontEx(p, baseSize, cp, codepoints);
+        break;
+      }
     }
     g_uiFontBold = uiFontBold;
+    // BILINEAR on the atlas: text is rendered at sizes below the atlas base
+    // size, so downscaling needs interpolation. (POINT discards pixel rows and
+    // makes glyphs look "striped"/broken; the atlas already has per-glyph
+    // padding so bilinear does not bleed between letters.)
     SetTextureFilter(uiFont.texture, TEXTURE_FILTER_BILINEAR);
     SetTextureFilter(uiFontBold.texture, TEXTURE_FILTER_BILINEAR);
     UnloadCodepoints(cp);

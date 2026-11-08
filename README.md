@@ -36,7 +36,7 @@ Pertahankan pangkalan (base) kamu dari gelombang drone, mech, dan colossus yang 
 - 💾 **Save / Load** berbasis JSON (`F5` / `F9`)
 - ⚙️ **Pengaturan volume** (Master / SFX / Music)
 - 🖥️ **Fullscreen & resolusi** — dropdown resolusi (720p–1440p) + fullscreen native, UI tetap proporsional di monitor apa pun (letterbox scaling)
-- 🔤 **Font kustom** (Rajdhani) dengan teks yang terbaca jelas di semua ukuran
+- 🔤 **Font kustom** (Barlow) dengan teks yang terbaca jelas di semua ukuran
 - ↩️ **Undo penempatan** tower terakhir dengan refund penuh (`Z`)
 - 🏆 **High score** tersimpan otomatis
 - ✨ **Juice**: particle burst, shockwave, floating text, ambient particles, slow-motion impact, hit-pause
@@ -334,7 +334,7 @@ src/
 ├── Bullet.h / .cpp   # Projectile, collision, AoE, particles
 ├── Renderer3D.h/.cpp # Semua rendering 3D prosedural
 ├── json.hpp          # nlohmann/json (dependency, single-header)
-└── fonts/            # Font UI (Rajdhani) + lisensi OFL
+└── fonts/            # Font UI (Barlow) + lisensi OFL
 fonts/                # Salinan font di samping game.exe (runtime)
 ```
 
@@ -342,7 +342,7 @@ fonts/                # Salinan font di samping game.exe (runtime)
 
 - **Kamera:** orthographic top-down, pitch 80°, fovy 32,4°
 - **Virtual canvas:** render tetap ke 1280×720 lalu letterbox-scale ke jendela
-- **Font UI:** Rajdhani (TrueType), di-load via `LoadFontEx`, di-scale bilinear
+- **Font UI:** Barlow (TrueType), di-load via `LoadFontEx`, di-scale bilinear
 - **Koordinat:** pemetaan 2D gameplay ↔ 3D world memakai skala `0.045`
 - **Mouse picking:** ray-cast dari kursor ke bidang `Y = 0`
 - **Jalur:** 9 waypoint, murni horizontal/vertikal
@@ -382,9 +382,9 @@ Kode proyek ini bebas digunakan untuk pembelajaran.
 |---|---|
 | [raylib](https://github.com/raysan5/raylib) | `zlib` |
 | [nlohmann/json](https://github.com/nlohmann/json) | `MIT` |
-| [Rajdhani font](https://fonts.google.com/specimen/Rajdhani) | `SIL Open Font License 1.1` — teks lisensi lengkap ada di [`src/fonts/OFL.txt`](src/fonts/OFL.txt) |
+| [Barlow font](https://fonts.google.com/specimen/Barlow) | `SIL Open Font License 1.1` — teks lisensi lengkap ada di [`src/fonts/OFL.txt`](src/fonts/OFL.txt) |
 
-Rajdhani dibuat oleh Indian Type Foundry dan didistribusikan di bawah OFL, sehingga aman untuk dibundel dan didistribusikan kembali bersama game ini.
+Barlow dibuat oleh The Barlow Project Authors dan didistribusikan di bawah OFL, sehingga aman untuk dibundel dan didistribusikan kembali bersama game ini.
 
 ---
 
