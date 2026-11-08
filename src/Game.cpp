@@ -2271,7 +2271,7 @@ void Game::Draw() {
                            TowerType::BASIC, colBasic);
 
   // Text details
-  DrawText("ARCHER", btnBasic.x + 76.0f, btnBasic.y + 6.0f, 15,
+  DrawText("SENTRY", btnBasic.x + 76.0f, btnBasic.y + 6.0f, 15,
            canAffordBasic ? WHITE : GRAY);
   DrawText("Serba bisa", btnBasic.x + 76.0f, btnBasic.y + 25.0f, 11,
            canAffordBasic ? Color{148, 163, 184, 255} : GRAY);
@@ -2317,7 +2317,7 @@ void Game::Draw() {
                            TowerType::RAPID, colRapid);
 
   // Text details
-  DrawText("MAGE", btnRapid.x + 76.0f, btnRapid.y + 6.0f, 15,
+  DrawText("PULSE", btnRapid.x + 76.0f, btnRapid.y + 6.0f, 15,
            canAffordRapid ? WHITE : GRAY);
   DrawText("Tembak cepat", btnRapid.x + 76.0f, btnRapid.y + 25.0f, 11,
            canAffordRapid ? Color{148, 163, 184, 255} : GRAY);
@@ -2363,7 +2363,7 @@ void Game::Draw() {
                            TowerType::CANNON, colCannon);
 
   // Text details
-  DrawText("CATAPULT", btnCannon.x + 76.0f, btnCannon.y + 6.0f, 15,
+  DrawText("MORTAR", btnCannon.x + 76.0f, btnCannon.y + 6.0f, 15,
            canAffordCannon ? WHITE : GRAY);
   DrawText("Area (AoE)", btnCannon.x + 76.0f, btnCannon.y + 25.0f, 11,
            canAffordCannon ? Color{148, 163, 184, 255} : GRAY);

@@ -28,7 +28,7 @@ Pertahankan pangkalan (base) kamu dari gelombang drone, mech, dan colossus yang 
 
 ## Fitur Utama
 
-- 🏰 **3 tipe turret** dengan 3 level upgrade masing-masing (Archer, Mage, Catapult)
+- 🏰 **3 tipe turret** dengan 3 level upgrade masing-masing (Sentry, Pulse, Mortar)
 - 👾 **4 tipe musuh** termasuk boss raksasa setiap 5 wave
 - 🎯 **4 mode penargetan** (First, Last, Strongest, Closest) per tower
 - 💥 **Sistem crit** — 15% chance untuk damage ×2
@@ -153,14 +153,14 @@ Klik tower yang sudah dibangun untuk membuka panel info:
 
 ### Wave 1–5 — Fondasi
 
-- Mulai dengan **2–3 Archer** di tikungan pertama. Archer murah ($100) dan punya DPS stabil.
+- Mulai dengan **2–3 Sentry** di tikungan pertama. Sentry murah ($100) dan punya DPS stabil.
 - **Jangan upgrade dulu.** Lebih baik punya lebih banyak tower daripada satu tower level tinggi di awal.
-- Simpan uang untuk Catapult saat wave 5 (boss pertama).
+- Simpan uang untuk Mortar saat wave 5 (boss pertama).
 
 ### Wave 5, 10, 15… — Boss Wave
 
 - Boss punya **1000 HP** dan bergerak lambat (**speed 35**). Fokuskan damage.
-- Sebelum boss wave: pastikan setidaknya **satu Catapult** sudah ada. AoE-nya sangat efektif melawan kerumunan pengawal boss.
+- Sebelum boss wave: pastikan setidaknya **satu Mortar** sudah ada. AoE-nya sangat efektif melawan kerumunan pengawal boss.
 - Gunakan **mode STRONGEST** pada tower utama untuk fokus ke boss.
 
 ### Posisi Tower yang Efektif
@@ -183,12 +183,12 @@ Jalur berbelok 4 kali. Tempat terbaik adalah **di dalam tikungan** karena satu t
 | **FIRST** | Default. Membunuh musuh yang hampir sampai base — pilihan aman. |
 | **LAST** | Untuk "menahan" musuh di belakang agar tower lain ikut menembak. |
 | **STRONGEST** | Saat boss wave / melawan Tank. |
-| **CLOSEST** | Tower yang menembak sangat cepat (Mage) — minimalkan waktu peluru melayang. |
+| **CLOSEST** | Tower yang menembak sangat cepat (Pulse) — minimalkan waktu peluru melayang. |
 
 ### Ekonomi
 
 - **Jangan jual tower** kecuali benar-benar salah posisi — kamu kehilangan 30%.
-- Wave awal memberi reward kecil (Normal = $25). Manfaatkan untuk menabung Catapult.
+- Wave awal memberi reward kecil (Normal = $25). Manfaatkan untuk menabung Mortar.
 - Di wave tinggi, reward Boss ($200) + Tank ($60) membuat ekonomi jauh lebih longgar.
 
 ### Kesalahan Umum
@@ -202,7 +202,7 @@ Jalur berbelok 4 kali. Tempat terbaik adalah **di dalam tikungan** karena satu t
 
 ## Daftar Tower
 
-| | **Archer** (BASIC) | **Mage** (RAPID) | **Catapult** (CANNON) |
+| | **Sentry** (BASIC) | **Pulse** (RAPID) | **Mortar** (CANNON) |
 |---|---|---|---|
 | **Hotkey** | `1` | `2` | `3` |
 | **Biaya** | $100 | $150 | $250 |
@@ -213,19 +213,19 @@ Jalur berbelok 4 kali. Tempat terbaik adalah **di dalam tikungan** karena satu t
 
 ### Tabel Upgrade
 
-| Level | Archer DMG / CD / RNG | Mage DMG / CD / RNG | Catapult DMG / CD / RNG / AoE |
+| Level | Sentry DMG / CD / RNG | Pulse DMG / CD / RNG | Mortar DMG / CD / RNG / AoE |
 |---|---|---|---|
 | **Lv1** | 20 / 0.80s / 160 | 8 / 0.25s / 130 | 60 / 1.80s / 200 / 70 |
 | **Lv2** (biaya) | 30 / 0.75s / 175 — **$150** | 12 / 0.20s / 140 — **$200** | 85 / 1.70s / 215 / 80 — **$250** |
 | **Lv3** (biaya) | 45 / 0.70s / 190 — **$250** | 17 / 0.15s / 150 — **$300** | 120 / 1.60s / 230 / 90 — **$400** |
 
-**Nilai jual** = 70% × total investasi. Contoh: Catapult Lv3 (total $900) dijual **$630**.
+**Nilai jual** = 70% × total investasi. Contoh: Mortar Lv3 (total $900) dijual **$630**.
 
 ### Rekomendasi
 
-- **Archer** — tulang punggung. Rasio damage/biaya terbaik. DPS Lv3 ≈ **64,3/s**.
-- **Mage** — DPS tertinggi tapi damage per peluru kecil. Sangat bagus dengan mode CLOSEST. DPS Lv3 ≈ **113/s**.
-- **Catapult** — lambat tapi AoE. Wajib untuk boss wave dan kerumunan. DPS Lv3 ≈ **75/s** *per target*.
+- **Sentry** — tulang punggung. Rasio damage/biaya terbaik. DPS Lv3 ≈ **64,3/s**.
+- **Pulse** — DPS tertinggi tapi damage per peluru kecil. Sangat bagus dengan mode CLOSEST. DPS Lv3 ≈ **113/s**.
+- **Mortar** — lambat tapi AoE. Wajib untuk boss wave dan kerumunan. DPS Lv3 ≈ **75/s** *per target*.
 
 ---
 
@@ -235,7 +235,7 @@ Jalur berbelok 4 kali. Tempat terbaik adalah **di dalam tikungan** karena satu t
 |---|---|---|---|---|---|
 | **Normal** (Drone) | 100 | 80 | $25 | 20 | Musuh standar. |
 | **Fast** (Scout) | 60 | 140 | $30 | 15 | Cepat tapi rapuh. |
-| **Tank** (Heavy Mech) | 250 | 45 | $60 | 26 | Lambat, tebal. Butuh Catapult / Archer Lv3. |
+| **Tank** (Heavy Mech) | 250 | 45 | $60 | 26 | Lambat, tebal. Butuh Mortar / Sentry Lv3. |
 | **BOSS** (Colossus) | 1000 | 35 | $200 | 30 | Muncul setiap wave kelipatan 5. |
 
 ---
@@ -267,7 +267,7 @@ Jalur berbelok 4 kali. Tempat terbaik adalah **di dalam tikungan** karena satu t
 
 | Tombol | Fungsi |
 |---|---|
-| `1` `2` `3` | Pilih / batalkan tower Archer / Mage / Catapult |
+| `1` `2` `3` | Pilih / batalkan tower Sentry / Pulse / Mortar |
 | `ESC` | Pause / Resume · batalkan build mode · tutup dialog |
 | `SPACE` | Pause / Resume |
 | `ENTER` | Mulai wave (saat siap) · tutup tutorial |

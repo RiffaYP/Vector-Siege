@@ -23,9 +23,9 @@ float Tower::GetTowerRange(TowerType type) {
 
 const char* Tower::GetTowerName(TowerType type) {
     switch (type) {
-        case TowerType::BASIC: return "ARCHER";
-        case TowerType::RAPID: return "MAGE";
-        case TowerType::CANNON: return "CATAPULT";
+        case TowerType::BASIC: return "SENTRY";
+        case TowerType::RAPID: return "PULSE";
+        case TowerType::CANNON: return "MORTAR";
     }
     return "UNKNOWN";
 }
