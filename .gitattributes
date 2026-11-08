@@ -1,0 +1,15 @@
+# Normalize line endings so the repo behaves the same on every OS.
+# Text files are stored with LF in the repo and checked out per-OS.
+* text=auto eol=lf
+
+# Explicit language hints for GitHub
+*.cpp text
+*.h   text
+*.hpp text
+*.md  text
+
+# Binary files must never be normalized
+*.exe  binary
+*.dll  binary
+*.png  binary
+*.jpg  binary
