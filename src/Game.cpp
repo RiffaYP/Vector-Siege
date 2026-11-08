@@ -871,20 +871,25 @@ void Game::Update(float deltaTime) {
       // Resolution dropdown open? Any pick closes it.
       if (showResDropdown) {
         for (int i = 0; i < RES_COUNT; i++) {
-          if (CheckCollisionPointRec(mouse, resOptionRec[i])) {
-            resIndex = i;
-            GetResolution(resIndex, windowWidth, windowHeight);
-            if (!fullscreen) {
-              SetWindowSize(windowWidth, windowHeight);
-              int monitor = GetCurrentMonitor();
-              SetWindowPosition(
-                  (GetMonitorWidth(monitor) - windowWidth) / 2,
-                  (GetMonitorHeight(monitor) - windowHeight) / 2);
+if (CheckCollisionPointRec(mouse, resOptionRec[i])) {
+              resIndex = i;
+              GetResolution(resIndex, windowWidth, windowHeight);
+              if (!fullscreen) {
+                // Clamp to monitor size for windowed mode
+                int monitor = GetCurrentMonitor();
+                int maxW = GetMonitorWidth(monitor);
+                int maxH = GetMonitorHeight(monitor);
+                int w = windowWidth > maxW ? maxW : windowWidth;
+                int h = windowHeight > maxH ? maxH : windowHeight;
+                SetWindowSize(w, h);
+                SetWindowPosition(
+                    (GetMonitorWidth(monitor) - w) / 2,
+                    (GetMonitorHeight(monitor) - h) / 2);
+              }
+              UpdateCanvasLayout();
+              SaveSettings();
+              break;
             }
-            UpdateCanvasLayout();
-            SaveSettings();
-            break;
-          }
         }
         showResDropdown = false;
         return;
@@ -3307,7 +3312,11 @@ void Game::ApplySettings() {
   // The virtual canvas + letterboxing in Draw() keeps the game undistorted.
   bool currentlyFullscreen = IsWindowFullscreen();
   if (fullscreen && !currentlyFullscreen) {
-    // Enter fullscreen: toggle directly (raylib saves windowed rect internally).
+    // Enter fullscreen: first set window to monitor's native resolution,
+    // then toggle. This ensures raylib saves the correct windowed rect
+    // and the fullscreen resolution matches the monitor.
+    int monitor = GetCurrentMonitor();
+    SetWindowSize(GetMonitorWidth(monitor), GetMonitorHeight(monitor));
     ::ToggleFullscreen();
     fullscreen = true;
   } else if (!fullscreen && currentlyFullscreen) {
@@ -3323,10 +3332,15 @@ void Game::ApplySettings() {
   }
   // If windowed, ensure size/position match settings (covers resolution changes).
   if (!fullscreen) {
-    SetWindowSize(windowWidth, windowHeight);
+    // Safety: clamp windowed resolution to monitor size
     int monitor = GetCurrentMonitor();
-    SetWindowPosition((GetMonitorWidth(monitor) - windowWidth) / 2,
-                      (GetMonitorHeight(monitor) - windowHeight) / 2);
+    int maxW = GetMonitorWidth(monitor);
+    int maxH = GetMonitorHeight(monitor);
+    int w = windowWidth > maxW ? maxW : windowWidth;
+    int h = windowHeight > maxH ? maxH : windowHeight;
+    SetWindowSize(w, h);
+    SetWindowPosition((GetMonitorWidth(monitor) - w) / 2,
+                      (GetMonitorHeight(monitor) - h) / 2);
   }
   UpdateCanvasLayout();
 }
@@ -3342,8 +3356,11 @@ void Game::ToggleFullscreen() {
     SetWindowPosition((GetMonitorWidth(monitor) - windowWidth) / 2,
                       (GetMonitorHeight(monitor) - windowHeight) / 2);
   } else {
-    // Entering fullscreen: just toggle. Raylib handles the transition
-    // and saves the windowed rect for restoration on exit.
+    // Entering fullscreen: first set window to monitor's native resolution,
+    // then toggle. This ensures raylib saves the correct windowed rect
+    // and the fullscreen resolution matches the monitor.
+    int monitor = GetCurrentMonitor();
+    SetWindowSize(GetMonitorWidth(monitor), GetMonitorHeight(monitor));
     ::ToggleFullscreen();
     fullscreen = true;
   }
