@@ -93,6 +93,14 @@ namespace Design {
   // Minimum distance between two tower centers. Must exceed the sum of two
   // visual radii so placed towers never overlap on screen.
   constexpr float TOWER_MIN_SPACING   = TOWER_VISUAL_RADIUS * 2.0f + 8.0f; // ~75 px
+
+  // ---- Virtual canvas (fixed-resolution rendering) ------------------------
+  // The whole game is rendered into a fixed 1280x720 framebuffer and then
+  // letterboxed onto whatever window size / display mode is active. This
+  // keeps every hard-coded UI coordinate valid in windowed, borderless and
+  // fullscreen modes on any monitor.
+  constexpr int VIRTUAL_W = 1280;
+  constexpr int VIRTUAL_H = 720;
 }
 
 class Game {
@@ -253,7 +261,21 @@ private:
   Camera3D camera;
   float globalTime;
 
+  // Custom TrueType font (Rajdhani, SIL OFL). Used for every piece of text so
+  // the UI no longer relies on raylib's tiny built-in pixel font.
+  Font uiFont;
+  Font uiFontBold;
 
+  // Virtual-resolution framebuffer + letterbox transform
+  RenderTexture2D canvas;
+  Rectangle canvasDest;     // where the virtual canvas lands on screen
+  float canvasScale;        // dest / virtual ratio (uniform, letterboxed)
+
+  // Screen resolution options offered in the settings menu
+  static constexpr int RES_COUNT = 5;
+  int resIndex;             // currently applied windowed resolution
+  bool showResDropdown;     // resolution picker open?
+  Rectangle resOptionRec[RES_COUNT];
 
   // Helper functions
   bool IsOnRoad(Vector2 position) const;
@@ -268,8 +290,18 @@ private:
   void TriggerHitPause(float duration);
   void TriggerTimeScale(float targetScale);
 
+  // Virtual-canvas helpers
+  void UpdateCanvasLayout();          // recompute canvasDest + canvasScale
+  Vector2 GetMousePositionVirtual() const;  // mouse in 1280x720 space
+  Vector2 ScreenToVirtual(Vector2 screen) const;
+  Camera3D GetVirtualCamera() const;  // camera honouring screen->virtual
+
   // 3D mouse picking
   Vector2 GetMouseWorld2D() const;
+
+  // Resolution helpers
+  static const char* GetResolutionLabel(int index);
+  static void GetResolution(int index, int& w, int& h);
 
 public:
   Game();

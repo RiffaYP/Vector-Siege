@@ -6,6 +6,64 @@
 #include <fstream>
 
 // ==========================================
+// UI FONT LAYER
+// ==========================================
+// Two global fonts are loaded once (see Game ctor). These thin wrappers let
+// all existing DrawText()/MeasureText() calls transparently use the custom
+// TrueType font, specified in "pixel height" like raylib's built-in text so
+// the call sites do not need to change.
+static Font g_uiFont{};
+static Font g_uiFontBold{};
+static bool g_uiFontReady = false;
+
+// Font sizes were authored for raylib's default font, which renders smaller
+// than a typical TTF at the same nominal height. A modest upscale keeps the
+// original layout while making text clearly readable.
+static constexpr float UI_FONT_SCALE = 1.18f;
+// Rajdhani is condensed; a little extra letter spacing improves legibility.
+static constexpr float UI_FONT_SPACING = 0.5f;
+
+int UIMeasureText(const char *text, int fontSize) {
+  if (!text || fontSize <= 0) return 0;
+  if (!g_uiFontReady) return MeasureText(text, fontSize);
+  float px = (float)fontSize * UI_FONT_SCALE;
+  Vector2 m = MeasureTextEx(g_uiFont, text, px, UI_FONT_SPACING);
+  return (int)ceilf(m.x);
+}
+
+void UIDrawText(const char *text, int posX, int posY, int fontSize, Color color) {
+  if (!text || fontSize <= 0) return;
+  if (!g_uiFontReady) {
+    DrawText(text, posX, posY, fontSize, color);
+    return;
+  }
+  float px = (float)fontSize * UI_FONT_SCALE;
+  // Vertically center the glyphs around the original baseline box so existing
+  // hard-coded Y coordinates keep looking right.
+  float yOffset = ((float)fontSize - px) * 0.5f;
+  DrawTextEx(g_uiFont, text, Vector2{(float)posX, (float)posY + yOffset}, px,
+             UI_FONT_SPACING, color);
+}
+
+// Bold variant, used for prominent headings (titles, big numbers).
+void UIDrawTextBold(const char *text, int posX, int posY, int fontSize, Color color) {
+  if (!text || fontSize <= 0) return;
+  Font f = (g_uiFontBold.texture.id != 0) ? g_uiFontBold : g_uiFont;
+  if (!g_uiFontReady) {
+    DrawText(text, posX, posY, fontSize, color);
+    return;
+  }
+  float px = (float)fontSize * UI_FONT_SCALE;
+  float yOffset = ((float)fontSize - px) * 0.5f;
+  DrawTextEx(f, text, Vector2{(float)posX, (float)posY + yOffset}, px,
+             UI_FONT_SPACING, color);
+}
+
+// Route every call in this translation unit through the font layer.
+#define DrawText UIDrawText
+#define MeasureText UIMeasureText
+
+// ==========================================
 // DRAW HELPERS
 // ==========================================
 
@@ -13,6 +71,13 @@ static void DrawTextCentered(const char *text, float centerX, float y,
                              int fontSize, Color color) {
   int w = MeasureText(text, fontSize);
   DrawText(text, (int)(centerX - w * 0.5f), (int)y, fontSize, color);
+}
+
+// Bold centered heading for prominent titles.
+static void DrawTextCenteredBold(const char *text, float centerX, float y,
+                                 int fontSize, Color color) {
+  int w = UIMeasureText(text, fontSize);
+  UIDrawTextBold(text, (int)(centerX - w * 0.5f), (int)y, fontSize, color);
 }
 
 static void DrawTextCenteredInRect(const char *text, Rectangle rec,
@@ -158,7 +223,7 @@ Game::Game()
       enemiesToSpawn(5), enemiesSpawned(0), spawnTimer(2.0f),
       spawnInterval(1.0f), waveInProgress(false), nextWaveTimer(0.0f),
       bossWaveTimer(0.0f), waveReadyToStart(true),
-      btnStartWave{535.0f, 355.0f, 210.0f, 42.0f},
+      btnStartWave{510.0f, 350.0f, 260.0f, 56.0f},
       lastPlacement{{0,0}, TowerType::BASIC, 0, false}, canUndo(false),
       gameOver(false), isPaused(false), victory(false),
       endlessMode(false), gameSpeed(1.0f),
@@ -195,11 +260,62 @@ Game::Game()
       showTutorial(true), tutorialTimer(0.0f),
       tooltipText(""), tooltipPos({0, 0}), tooltipTimer(0.0f), showTooltip(false),
       uiWavePreviewTimer(0.0f), uiWavePreviewActive(false), uiTooltipFade(0.0f),
-      uiPanelSlide(0.0f), uiPanelVisible(true) {
+      uiPanelSlide(0.0f), uiPanelVisible(true),
+      canvas{}, canvasDest{0, 0, (float)Design::VIRTUAL_W, (float)Design::VIRTUAL_H},
+      canvasScale(1.0f), resIndex(0), showResDropdown(false),
+      resOptionRec{} {
+
+  // Silence raylib's info log; only warnings/errors are shown. Keeps the
+  // console clean for players.
+  SetTraceLogLevel(LOG_WARNING);
 
   InitWindow(screenWidth, screenHeight, "Vector Siege");
   SetExitKey(KEY_NULL);
   SetTargetFPS(60);
+
+  // Load the custom UI font (Rajdhani, SIL OFL). Loading at a high base size
+  // and down/up-scaling gives crisp text at every resolution. If the files are
+  // missing the game silently falls back to raylib's built-in font.
+  {
+    // Base size large enough that downscaling stays sharp; raylib renders the
+    // atlas once and scales with bilinear filtering.
+    const int baseSize = 64;
+    int codepoints = 0;
+    int *cp = LoadCodepoints(
+        " !\"#$%&'()*+,-./0123456789:;<=>?@"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"
+        "abcdefghijklmnopqrstuvwxyz{|}~"
+        "×÷→←↑↓•°",
+        &codepoints);
+
+    if (FileExists("src/fonts/Rajdhani-Regular.ttf")) {
+      uiFont = LoadFontEx("src/fonts/Rajdhani-Regular.ttf", baseSize, cp, codepoints);
+      g_uiFont = uiFont;
+      g_uiFontReady = true;
+    } else if (FileExists("fonts/Rajdhani-Regular.ttf")) {
+      uiFont = LoadFontEx("fonts/Rajdhani-Regular.ttf", baseSize, cp, codepoints);
+      g_uiFont = uiFont;
+      g_uiFontReady = true;
+    }
+    if (FileExists("src/fonts/Rajdhani-Bold.ttf")) {
+      uiFontBold = LoadFontEx("src/fonts/Rajdhani-Bold.ttf", baseSize, cp, codepoints);
+    } else if (FileExists("fonts/Rajdhani-Bold.ttf")) {
+      uiFontBold = LoadFontEx("fonts/Rajdhani-Bold.ttf", baseSize, cp, codepoints);
+    }
+    g_uiFontBold = uiFontBold;
+    SetTextureFilter(uiFont.texture, TEXTURE_FILTER_BILINEAR);
+    SetTextureFilter(uiFontBold.texture, TEXTURE_FILTER_BILINEAR);
+    UnloadCodepoints(cp);
+  }
+
+  // Fixed-resolution virtual canvas. Everything is drawn into this 1280x720
+  // target and then letterboxed to the real window, so hard-coded UI
+  // coordinates stay correct at any window size or display mode.
+  canvas = LoadRenderTexture(Design::VIRTUAL_W, Design::VIRTUAL_H);
+  SetTextureFilter(canvas.texture, TEXTURE_FILTER_BILINEAR);
+  canvasScale = 1.0f;
+  canvasDest = Rectangle{0, 0, (float)Design::VIRTUAL_W, (float)Design::VIRTUAL_H};
+  UpdateCanvasLayout();
 
   // Load settings before initializing audio
   LoadSettings();
@@ -266,6 +382,18 @@ Game::~Game() {
   UnloadSound(sndBossWave);
   UnloadSound(sndGameOver);
 
+  UnloadRenderTexture(canvas);
+
+  // Release the custom fonts (guard against the fallback path).
+  if (g_uiFontReady && uiFont.texture.id != GetFontDefault().texture.id) {
+    UnloadFont(uiFont);
+  }
+  if (uiFontBold.texture.id != 0 &&
+      uiFontBold.texture.id != GetFontDefault().texture.id) {
+    UnloadFont(uiFontBold);
+  }
+  g_uiFontReady = false;
+
   CloseAudioDevice();
   CloseWindow();
 }
@@ -302,9 +430,55 @@ void Game::Restart() {
 
 }
 
-// 3D Mouse Ray Picking: project mouse cursor onto the Y=0 ground plane
+// ---------------------------------------------------------------------------
+// Virtual canvas / letterbox helpers
+// ---------------------------------------------------------------------------
+
+// Recompute where the 1280x720 virtual canvas lands inside the real window.
+// Uses uniform scaling (preserves aspect ratio) and centers it with letterbox
+// or pillarbox bars.
+void Game::UpdateCanvasLayout() {
+  int winW = GetScreenWidth();
+  int winH = GetScreenHeight();
+  if (winW <= 0) winW = Design::VIRTUAL_W;
+  if (winH <= 0) winH = Design::VIRTUAL_H;
+
+  float sx = (float)winW / (float)Design::VIRTUAL_W;
+  float sy = (float)winH / (float)Design::VIRTUAL_H;
+  canvasScale = (sx < sy) ? sx : sy;   // fit inside, keep aspect
+
+  float w = (float)Design::VIRTUAL_W * canvasScale;
+  float h = (float)Design::VIRTUAL_H * canvasScale;
+  canvasDest = Rectangle{(winW - w) * 0.5f, (winH - h) * 0.5f, w, h};
+}
+
+// Convert a real screen-space point into virtual 1280x720 coordinates.
+Vector2 Game::ScreenToVirtual(Vector2 screen) const {
+  if (canvasScale <= 0.0f) return screen;
+  return Vector2{
+      (screen.x - canvasDest.x) / canvasScale,
+      (screen.y - canvasDest.y) / canvasScale};
+}
+
+// Mouse position expressed in virtual 1280x720 space.
+Vector2 Game::GetMousePositionVirtual() const {
+  return ScreenToVirtual(GetMousePosition());
+}
+
+// Camera adjusted so screen-space ray picking works against the virtual
+// canvas. GetScreenToWorldRay()/GetWorldToScreen() operate in render-texture
+// pixel space (1280x720) because the world is drawn into the canvas before it
+// is scaled, so the raw camera is already correct — this hook exists to make
+// that contract explicit and to allow future projection tweaks.
+Camera3D Game::GetVirtualCamera() const {
+  return camera;
+}
+
+// 3D Mouse Ray Picking: project mouse cursor onto the Y=0 ground plane.
+// Uses virtual-space mouse coordinates so picking stays accurate regardless
+// of the actual window size / display mode.
 Vector2 Game::GetMouseWorld2D() const {
-  Vector2 mouse = GetMousePosition();
+  Vector2 mouse = GetMousePositionVirtual();
   Ray ray = GetScreenToWorldRay(mouse, camera);
   // Intersect with plane Y=0
   if (fabsf(ray.direction.y) < 0.0001f) return mouse; // Parallel guard
@@ -366,7 +540,7 @@ void Game::Run() {
 }
 
 void Game::Update(float deltaTime) {
-  Vector2 mouse = GetMousePosition();
+  Vector2 mouse = GetMousePositionVirtual();
 
   // =============================
   // GAME OVER STATE: HANDLE RESTART
@@ -675,10 +849,32 @@ void Game::Update(float deltaTime) {
   if (showSettings) {
     if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_BACKSPACE)) {
       showSettings = false;
+      showResDropdown = false;
       SaveSettings();
       return;
     }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+      // Resolution dropdown open? Any pick closes it.
+      if (showResDropdown) {
+        for (int i = 0; i < RES_COUNT; i++) {
+          if (CheckCollisionPointRec(mouse, resOptionRec[i])) {
+            resIndex = i;
+            GetResolution(resIndex, windowWidth, windowHeight);
+            if (!fullscreen) {
+              SetWindowSize(windowWidth, windowHeight);
+              int monitor = GetCurrentMonitor();
+              SetWindowPosition(
+                  (GetMonitorWidth(monitor) - windowWidth) / 2,
+                  (GetMonitorHeight(monitor) - windowHeight) / 2);
+            }
+            UpdateCanvasLayout();
+            SaveSettings();
+            break;
+          }
+        }
+        showResDropdown = false;
+        return;
+      }
       if (CheckCollisionPointRec(mouse, btnBackSettings)) {
         showSettings = false;
         SaveSettings();
@@ -688,10 +884,25 @@ void Game::Update(float deltaTime) {
         ToggleFullscreen();
         return;
       }
+      if (CheckCollisionPointRec(mouse, btnResolutionDropdown)) {
+        showResDropdown = !showResDropdown;
+        // Pre-compute option rectangles so the very next frame's input hit
+        // tests are valid (Draw() also refreshes them each frame).
+        if (showResDropdown) {
+          for (int i = 0; i < RES_COUNT; i++) {
+            resOptionRec[i] = Rectangle{
+                btnResolutionDropdown.x,
+                btnResolutionDropdown.y + btnResolutionDropdown.height + 4.0f +
+                    (float)i * 34.0f,
+                btnResolutionDropdown.width, 34.0f};
+          }
+        }
+        return;
+      }
     }
     // Volume sliders drag handling
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-      Vector2 mousePos = GetMousePosition();
+      Vector2 mousePos = GetMousePositionVirtual();
       if (CheckCollisionPointRec(mousePos, masterVolSlider) || draggingMasterVol) {
         draggingMasterVol = true;
         float relX = (mousePos.x - masterVolSlider.x) / masterVolSlider.width;
@@ -1138,7 +1349,7 @@ void Game::Update(float deltaTime) {
 
   // Start wave when player clicks button
   if (waveReadyToStart && !waveInProgress && !gameOver && !victory) {
-    Vector2 mouse = GetMousePosition();
+    Vector2 mouse = GetMousePositionVirtual();
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(mouse, btnStartWave)) {
       waveReadyToStart = false;
       waveInProgress = true;
@@ -1497,6 +1708,13 @@ static void DrawMiniTowerCardGraphic(Vector2 center, TowerType type,
 void Game::Draw() {
   BeginDrawing();
 
+  // Recompute letterbox layout every frame (window may resize at runtime).
+  UpdateCanvasLayout();
+
+  // ---- Render the whole game into the fixed 1280x720 virtual canvas -------
+  BeginTextureMode(canvas);
+  ClearBackground(BLACK);
+
   // =================================
   // 3D WORLD SCENE - Dynamic Sky Mood
   // =================================
@@ -1561,7 +1779,7 @@ void Game::Draw() {
 
   // Towers with animated crew characters
   Vector2 hoverWorld = GetMouseWorld2D();
-  Vector2 hoverScreen = GetMousePosition();
+  Vector2 hoverScreen = GetMousePositionVirtual();
   for (size_t i = 0; i < towers.size(); i++) {
     bool isSel = ((int)i == selectedTowerIndex);
     bool isHovered = !isBuildMode && !showSettings && !gameOver &&
@@ -1590,7 +1808,7 @@ void Game::Draw() {
   }
 
   // Tower placement preview
-  Vector2 mouse = GetMousePosition();
+  Vector2 mouse = GetMousePositionVirtual();
   bool hoveringBottomCards =
       (mouse.x >= 320.0f && mouse.x <= 960.0f && mouse.y >= 545.0f);
   bool hoveringPanel =
@@ -1606,7 +1824,7 @@ void Game::Draw() {
                                    Tower::GetTowerRange(selectedTowerType), canPlace);
 
     // Placement feedback near cursor
-    const char* placeMsg = canPlace ? "CLICK TO PLACE" : (money < Tower::GetTowerCost(selectedTowerType) ? "NOT ENOUGH MONEY" : "INVALID POSITION");
+    const char* placeMsg = canPlace ? "KLIK UNTUK PASANG" : (money < Tower::GetTowerCost(selectedTowerType) ? "UANG TIDAK CUKUP" : "POSISI TIDAK VALID");
     Color placeColor = canPlace ? Color{34, 197, 94, 255} : Color{239, 68, 68, 255};
     int msgW = MeasureText(placeMsg, 14);
     Vector2 msgPos = {mouse.x - msgW / 2.0f, mouse.y + 35.0f};
@@ -1646,6 +1864,59 @@ void Game::Draw() {
   // =================================
   if (waveReadyToStart && !waveInProgress && !gameOver && !victory) {
     DrawRectangle(0, 0, screenWidth, screenHeight, Fade(BLACK, 0.5f));
+  }
+
+  // =================================
+  // LANE DIRECTION LABELS (ENEMY SPAWN -> YOUR BASE)
+  // =================================
+  // New players need to know where enemies come from and what they defend.
+  // These float over the spawn portal and the base fortress, projected from
+  // their 3D world positions. Only shown early on (wave 1-3) or while the
+  // tutorial is up so they never clutter the screen later.
+  if ((wave <= 3 || showTutorial) && !gameOver && !victory) {
+    float pulse = 0.5f + 0.5f * sinf(globalTime * 2.5f);
+
+    // Spawn portal at path.front() (top-left). Nudge the label inward so it
+    // never clips off the left edge.
+    Vector3 spawnW = Renderer3D::To3D(path.front(), 4.9f);
+    Vector2 spawnS = GetWorldToScreen(spawnW, camera);
+    float sx = spawnS.x;
+    if (sx < 130.0f) sx = 130.0f; // keep on-screen
+    const char *spawnText = "MUSUH MUNCUL DI SINI";
+    int sw = MeasureText(spawnText, 14);
+    DrawRectangleRounded(
+        Rectangle{sx - sw * 0.5f - 12, spawnS.y - 24, (float)sw + 24, 30},
+        0.35f, 6, Fade(Color{120, 30, 60, 255}, 0.85f));
+    DrawRectangleRoundedLinesEx(
+        Rectangle{sx - sw * 0.5f - 12, spawnS.y - 24, (float)sw + 24, 30},
+        0.35f, 6, 1.5f, Fade(Color{239, 68, 68, 255}, 0.6f + 0.4f * pulse));
+    DrawText(spawnText, (int)(sx - sw * 0.5f), (int)spawnS.y - 17, 14,
+             Color{255, 200, 210, 255});
+    // Down arrow pointing at the portal
+    Vector2 arrowTip{sx, spawnS.y + 6};
+    DrawTriangle(arrowTip, Vector2{sx - 8, spawnS.y + 24},
+                 Vector2{sx + 8, spawnS.y + 24},
+                 Fade(Color{239, 68, 68, 255}, 0.6f + 0.4f * pulse));
+
+    // Base fortress at path.back() (right). Keep the label clear of the right
+    // edge and of the top HUD.
+    Vector3 baseW = Renderer3D::To3D(path.back(), 7.0f);
+    Vector2 baseS = GetWorldToScreen(baseW, camera);
+    float bx = baseS.x;
+    const char *baseText = "BASE KAMU";
+    int bw = MeasureText(baseText, 14);
+    if (bx + bw * 0.5f + 12 > screenWidth - 8)
+      bx = screenWidth - 8 - bw * 0.5f - 12;
+    float by = baseS.y;
+    if (by - 24 < 74.0f) by = 74.0f + 24; // below top HUD
+    DrawRectangleRounded(
+        Rectangle{bx - bw * 0.5f - 12, by - 24, (float)bw + 24, 30}, 0.35f, 6,
+        Fade(Color{10, 45, 60, 255}, 0.85f));
+    DrawRectangleRoundedLinesEx(
+        Rectangle{bx - bw * 0.5f - 12, by - 24, (float)bw + 24, 30}, 0.35f, 6,
+        1.5f, Fade(Color{0, 200, 240, 255}, 0.6f + 0.4f * pulse));
+    DrawText(baseText, (int)(bx - bw * 0.5f), (int)by - 17, 14,
+             Color{190, 240, 255, 255});
   }
 
   // =================================
@@ -1710,7 +1981,7 @@ void Game::Draw() {
   } else if (!gameOver) {
     if (waveReadyToStart) {
       // Show a live intermission stopwatch so the HUD never looks frozen.
-      DrawTextCentered(TextFormat("READY - CLICK START (%.1fs)", nextWaveTimer),
+      DrawTextCentered(TextFormat("SIAP - KLIK START (%.1fs)", nextWaveTimer),
                        waveBox.x + waveBox.width * 0.5f, waveBox.y + 30.0f, 12,
                        Color{34, 197, 94, 255});
     } else {
@@ -1837,16 +2108,44 @@ void Game::Draw() {
   Color speedTextColor = (gameSpeed >= 3.0f) ? Color{239, 68, 68, 255} : (isFast ? Color{250, 204, 21, 255} : WHITE);
   DrawText(speedText, (int)btnSpeed.x + 11, (int)btnSpeed.y + 11, 16, speedTextColor);
 
-  // Start Wave Button (center top when wave ready)
+  // Start Wave Button (center, prominent, gently pulsing)
   if (waveReadyToStart && !waveInProgress && !gameOver && !victory) {
     bool isHovStart = CheckCollisionPointRec(mouse, btnStartWave);
-    Color startBorder = isHovStart ? Color{34, 255, 100, 255} : Color{34, 197, 94, 255};
-    Color startBg = isHovStart ? Fade(Color{22, 163, 74, 255}, 0.85f) : Fade(Color{21, 128, 61, 255}, 0.85f);
-    DrawSciFiPanel(btnStartWave, startBorder, startBg, 0.2f, isHovStart ? 0.4f : 0.15f);
-    DrawText("START WAVE", (int)btnStartWave.x + 38, (int)btnStartWave.y + 13, 16, WHITE);
-    
-    // Keyboard hint
-    DrawText("[ENTER]", (int)btnStartWave.x + 65, (int)btnStartWave.y + 30, 10, Color{148, 163, 184, 255});
+    // Pulse between two green tones to draw the eye — this is the single most
+    // important action for a new player.
+    float pulse = 0.5f + 0.5f * sinf(globalTime * 3.5f);
+    Color startBorder = isHovStart
+        ? Color{120, 255, 150, 255}
+        : (Color)(Color{34, (unsigned char)(180 + (int)(60 * pulse)), 94, 255});
+    Color startBg = isHovStart ? Fade(Color{22, 163, 74, 255}, 0.95f)
+                              : Fade(Color{21, (unsigned char)(110 + (int)(40 * pulse)), 61, 255}, 0.9f);
+    DrawSciFiPanel(btnStartWave, startBorder, startBg, 0.2f,
+                   isHovStart ? 0.5f : (0.25f + 0.25f * pulse));
+
+    const char *label = "START WAVE";
+    DrawTextCenteredBold(label, btnStartWave.x + btnStartWave.width * 0.5f,
+                         btnStartWave.y + 10, 22, WHITE);
+
+    const char *hint = "tekan ENTER";
+    int hw = MeasureText(hint, 12);
+    DrawText(hint, (int)(btnStartWave.x + (btnStartWave.width - hw) * 0.5f),
+             (int)(btnStartWave.y + 36), 12, Color{210, 240, 215, 230});
+  }
+
+  // Contextual hint for brand-new players: no towers built yet.
+  if (towers.empty() && !gameOver && !victory && !showSettings &&
+      !showSellConfirm && !showRestartConfirm) {
+    float a = 0.65f + 0.35f * (0.5f + 0.5f * sinf(globalTime * 3.0f));
+    const char *hint = "Bangun tower dulu: tekan 1, 2, atau 3 lalu klik area kosong";
+    int hw = MeasureText(hint, 16);
+    float hx = (screenWidth - hw) * 0.5f;
+    float hy = 100.0f;
+    DrawRectangleRounded(Rectangle{hx - 16, hy - 8, (float)hw + 32, 34}, 0.4f, 8,
+                         Fade(Color{10, 20, 32, 255}, 0.85f));
+    DrawRectangleRoundedLinesEx(Rectangle{hx - 16, hy - 8, (float)hw + 32, 34},
+                                0.4f, 8, 1.5f,
+                                Fade(Color{0, 200, 240, 255}, a));
+    DrawText(hint, (int)hx, (int)hy, 16, Fade(WHITE, a));
   }
 
   // Kanan: Money Card
@@ -1958,19 +2257,21 @@ void Game::Draw() {
                            TowerType::BASIC, colBasic);
 
   // Text details
-  DrawText("BASIC TOWER", btnBasic.x + 76.0f, btnBasic.y + 12.0f, 13,
+  DrawText("ARCHER", btnBasic.x + 76.0f, btnBasic.y + 6.0f, 15,
            canAffordBasic ? WHITE : GRAY);
-  DrawText("$100", btnBasic.x + 76.0f, btnBasic.y + 30.0f, 17,
+  DrawText("Serba bisa", btnBasic.x + 76.0f, btnBasic.y + 25.0f, 11,
+           canAffordBasic ? Color{148, 163, 184, 255} : GRAY);
+  DrawText("$100", btnBasic.x + 76.0f, btnBasic.y + 42.0f, 18,
            canAffordBasic ? Color{250, 204, 21, 255} : GRAY);
 
   // Stats footer
   DrawIconSword(Vector2{btnBasic.x + 16.0f, btnBasic.y + 87.0f}, 12.0f,
                 canAffordBasic ? colBasic : GRAY);
-  DrawText("DMG 20", btnBasic.x + 28.0f, btnBasic.y + 82.0f, 11,
+  DrawText("Dmg 20", btnBasic.x + 28.0f, btnBasic.y + 82.0f, 12,
            canAffordBasic ? Color{203, 213, 225, 255} : GRAY);
   DrawIconTarget(Vector2{btnBasic.x + 104.0f, btnBasic.y + 87.0f}, 12.0f,
                  canAffordBasic ? colBasic : GRAY);
-  DrawText("RNG 160", btnBasic.x + 116.0f, btnBasic.y + 82.0f, 11,
+  DrawText("Jrk 160", btnBasic.x + 116.0f, btnBasic.y + 82.0f, 12,
            canAffordBasic ? Color{203, 213, 225, 255} : GRAY);
 
   // --- CARD 2: RAPID TOWER ---
@@ -2002,19 +2303,21 @@ void Game::Draw() {
                            TowerType::RAPID, colRapid);
 
   // Text details
-  DrawText("RAPID TOWER", btnRapid.x + 76.0f, btnRapid.y + 12.0f, 13,
+  DrawText("MAGE", btnRapid.x + 76.0f, btnRapid.y + 6.0f, 15,
            canAffordRapid ? WHITE : GRAY);
-  DrawText("$150", btnRapid.x + 76.0f, btnRapid.y + 30.0f, 17,
+  DrawText("Tembak cepat", btnRapid.x + 76.0f, btnRapid.y + 25.0f, 11,
+           canAffordRapid ? Color{148, 163, 184, 255} : GRAY);
+  DrawText("$150", btnRapid.x + 76.0f, btnRapid.y + 42.0f, 18,
            canAffordRapid ? Color{250, 204, 21, 255} : GRAY);
 
   // Stats footer
   DrawIconSword(Vector2{btnRapid.x + 16.0f, btnRapid.y + 87.0f}, 12.0f,
                 canAffordRapid ? colRapid : GRAY);
-  DrawText("DMG 8", btnRapid.x + 28.0f, btnRapid.y + 82.0f, 11,
+  DrawText("Dmg 8", btnRapid.x + 28.0f, btnRapid.y + 82.0f, 12,
            canAffordRapid ? Color{203, 213, 225, 255} : GRAY);
   DrawIconTarget(Vector2{btnRapid.x + 104.0f, btnRapid.y + 87.0f}, 12.0f,
                  canAffordRapid ? colRapid : GRAY);
-  DrawText("RNG 130", btnRapid.x + 116.0f, btnRapid.y + 82.0f, 11,
+  DrawText("Jrk 130", btnRapid.x + 116.0f, btnRapid.y + 82.0f, 12,
            canAffordRapid ? Color{203, 213, 225, 255} : GRAY);
 
   // --- CARD 3: CANNON TOWER ---
@@ -2046,19 +2349,21 @@ void Game::Draw() {
                            TowerType::CANNON, colCannon);
 
   // Text details
-  DrawText("CANNON TOWER", btnCannon.x + 76.0f, btnCannon.y + 12.0f, 13,
+  DrawText("CATAPULT", btnCannon.x + 76.0f, btnCannon.y + 6.0f, 15,
            canAffordCannon ? WHITE : GRAY);
-  DrawText("$250", btnCannon.x + 76.0f, btnCannon.y + 30.0f, 17,
+  DrawText("Area (AoE)", btnCannon.x + 76.0f, btnCannon.y + 25.0f, 11,
+           canAffordCannon ? Color{148, 163, 184, 255} : GRAY);
+  DrawText("$250", btnCannon.x + 76.0f, btnCannon.y + 42.0f, 18,
            canAffordCannon ? Color{250, 204, 21, 255} : GRAY);
 
   // Stats footer
   DrawIconSword(Vector2{btnCannon.x + 16.0f, btnCannon.y + 87.0f}, 12.0f,
                 canAffordCannon ? colCannon : GRAY);
-  DrawText("DMG 60", btnCannon.x + 28.0f, btnCannon.y + 82.0f, 11,
+  DrawText("Dmg 60", btnCannon.x + 28.0f, btnCannon.y + 82.0f, 12,
            canAffordCannon ? Color{203, 213, 225, 255} : GRAY);
   DrawIconTarget(Vector2{btnCannon.x + 104.0f, btnCannon.y + 87.0f}, 12.0f,
                  canAffordCannon ? colCannon : GRAY);
-  DrawText("RNG 200", btnCannon.x + 116.0f, btnCannon.y + 82.0f, 11,
+  DrawText("Jrk 200", btnCannon.x + 116.0f, btnCannon.y + 82.0f, 12,
            canAffordCannon ? Color{203, 213, 225, 255} : GRAY);
 
   // =================================
@@ -2141,7 +2446,7 @@ void Game::Draw() {
 
     // Warning feedback if not enough money
     if (notEnoughMoneyTimer > 0.0f) {
-      const char* msg = "Not enough money!";
+      const char* msg = "Uang tidak cukup!";
       int msgW = MeasureText(msg, 13);
       float x = infoPanelRec.x + (infoPanelRec.width - msgW) * 0.5f;
       float y = btnUpgrade.y - 20.0f;
@@ -2202,7 +2507,7 @@ void Game::Draw() {
 
   // Feedback "Not enough money" saat di Build Mode
   if (isBuildMode && notEnoughMoneyTimer > 0.0f) {
-    const char* msg = "Not enough money!";
+    const char* msg = "Uang tidak cukup!";
     int msgW = MeasureText(msg, 18);
     int x = (int)mouse.x - msgW / 2;
     int y = (int)mouse.y - 50;
@@ -2218,7 +2523,7 @@ void Game::Draw() {
   // =================================
   if (!isBuildMode && !showSettings && !gameOver && !victory && !isPaused) {
     Vector2 hoverWorld = GetMouseWorld2D();
-    Vector2 hoverScreen = GetMousePosition();
+    Vector2 hoverScreen = GetMousePositionVirtual();
     
     for (size_t i = 0; i < towers.size(); i++) {
       if ((int)i == selectedTowerIndex) continue; // Don't show for selected tower (has its own panel)
@@ -2319,7 +2624,7 @@ void Game::Draw() {
     Rectangle pauseBox{(float)(screenWidth - 400) / 2.0f, 150.0f, 400.0f, 420.0f};
     DrawSciFiPanel(pauseBox, Color{0, 200, 240, 255},
                    Fade(Color{12, 22, 36, 255}, 0.95f), 0.12f, 0.45f);
-    DrawTextCentered("GAME PAUSED", pauseBox.x + pauseBox.width * 0.5f,
+    DrawTextCenteredBold("GAME PAUSED", pauseBox.x + pauseBox.width * 0.5f,
                      pauseBox.y + 28.0f, 26, Color{0, 200, 240, 255});
     DrawTextCentered("[SPACE] Resume  |  [R] Restart",
                      pauseBox.x + pauseBox.width * 0.5f, pauseBox.y + 70.0f, 14,
@@ -2383,7 +2688,7 @@ void Game::Draw() {
     Rectangle settingsBox{(float)(screenWidth - 500) / 2.0f, 70.0f, 500.0f, 540.0f};
     DrawSciFiPanel(settingsBox, Color{0, 200, 240, 255},
                    Fade(Color{12, 22, 36, 255}, 0.95f), 0.12f, 0.45f);
-    DrawTextCentered("SETTINGS", settingsBox.x + settingsBox.width * 0.5f,
+    DrawTextCenteredBold("SETTINGS", settingsBox.x + settingsBox.width * 0.5f,
                      settingsBox.y + 26.0f, 26, Color{0, 200, 240, 255});
 
     auto DrawSlider = [](Rectangle slider, const char *label, float value,
@@ -2418,15 +2723,29 @@ void Game::Draw() {
     DrawTextCenteredInRect(fullscreen ? "FULLSCREEN: ON" : "FULLSCREEN: OFF",
                            btnFullscreenToggle, 14, WHITE);
 
-    // Resolution Display
-    DrawText(TextFormat("RESOLUTION: %dx%d", windowWidth, windowHeight),
-             (int)btnResolutionDropdown.x, (int)btnResolutionDropdown.y - 22, 14, WHITE);
+    // Resolution selector (functional dropdown, applies instantly)
+    DrawText("RESOLUTION", (int)btnResolutionDropdown.x,
+             (int)btnResolutionDropdown.y - 22, 14, WHITE);
     bool isHovRes = CheckCollisionPointRec(mouse, btnResolutionDropdown);
-    DrawSciFiPanel(btnResolutionDropdown, Color{100, 116, 139, 255},
+    DrawSciFiPanel(btnResolutionDropdown,
+                   showResDropdown ? Color{0, 200, 240, 255}
+                                   : Color{100, 116, 139, 255},
                    isHovRes ? Color{82, 96, 114, 255} : Color{51, 65, 85, 255},
                    0.25f, isHovRes ? 0.35f : 0.0f);
-    DrawTextCenteredInRect("CHANGE (REQUIRES RESTART)", btnResolutionDropdown, 14,
-                           Color{148, 163, 184, 255});
+    if (fullscreen) {
+      DrawTextCenteredInRect("FULLSCREEN (native)", btnResolutionDropdown, 14,
+                             Color{148, 163, 184, 255});
+    } else {
+      DrawTextCenteredInRect(GetResolutionLabel(resIndex), btnResolutionDropdown,
+                             14, WHITE);
+    }
+    // Chevron hint
+    DrawText("v", (int)(btnResolutionDropdown.x + btnResolutionDropdown.width - 24),
+             (int)(btnResolutionDropdown.y + 12), 16,
+             Color{148, 163, 184, 255});
+
+    // (Resolution dropdown option list is drawn LAST, on top of everything,
+    //  right before the settings block ends.)
 
     // Back button
     bool isHovBack = CheckCollisionPointRec(mouse, btnBackSettings);
@@ -2439,6 +2758,28 @@ void Game::Draw() {
                      settingsBox.x + settingsBox.width * 0.5f,
                      settingsBox.y + settingsBox.height - 40.0f, 12,
                      Color{148, 163, 184, 255});
+
+    // Resolution dropdown list — drawn last so it overlays every other control.
+    if (showResDropdown) {
+      for (int i = 0; i < RES_COUNT; i++) {
+        Rectangle opt{btnResolutionDropdown.x,
+                      btnResolutionDropdown.y + btnResolutionDropdown.height + 4.0f +
+                          (float)i * 34.0f,
+                      btnResolutionDropdown.width, 34.0f};
+        resOptionRec[i] = opt;
+        bool hov = CheckCollisionPointRec(mouse, opt);
+        bool sel = (i == resIndex);
+        DrawRectangleRounded(opt, 0.2f, 4,
+                             sel ? Fade(Color{8, 145, 178, 255}, 0.98f)
+                                 : (hov ? Color{30, 41, 59, 255}
+                                        : Color{15, 23, 42, 255}));
+        DrawRectangleRoundedLinesEx(opt, 0.2f, 4, 1.0f,
+                                    sel ? Color{0, 200, 240, 255}
+                                        : Color{71, 85, 105, 255});
+        DrawTextCenteredInRect(GetResolutionLabel(i), opt, 13,
+                               sel ? WHITE : Color{203, 213, 225, 255});
+      }
+    }
   }
 
   // =================================
@@ -2450,7 +2791,7 @@ void Game::Draw() {
     DrawSciFiPanel(confirmBox, Color{239, 68, 68, 255},
                    Fade(Color{15, 23, 42, 255}, 0.95f), 0.12f, 0.45f);
     float cx = confirmBox.x + confirmBox.width * 0.5f;
-    DrawTextCentered("SELL TOWER?", cx, confirmBox.y + 20.0f, 26,
+    DrawTextCenteredBold("SELL TOWER?", cx, confirmBox.y + 20.0f, 26,
                      Color{239, 68, 68, 255});
     
     if (pendingSellTowerIndex >= 0 && pendingSellTowerIndex < (int)towers.size()) {
@@ -2488,7 +2829,7 @@ void Game::Draw() {
     DrawSciFiPanel(confirmBox, Color{239, 68, 68, 255},
                    Fade(Color{15, 23, 42, 255}, 0.95f), 0.12f, 0.45f);
     float cx = confirmBox.x + confirmBox.width * 0.5f;
-    DrawTextCentered("RESTART GAME?", cx, confirmBox.y + 20.0f, 26,
+    DrawTextCenteredBold("RESTART GAME?", cx, confirmBox.y + 20.0f, 26,
                      Color{239, 68, 68, 255});
     DrawTextCentered("All progress will be lost!", cx,
                      confirmBox.y + 66.0f, 16, WHITE);
@@ -2519,7 +2860,7 @@ void Game::Draw() {
     DrawSciFiPanel(overBox, Color{239, 68, 68, 255},
                    Fade(Color{15, 23, 42, 255}, 0.95f), 0.1f, 0.5f);
     float cx = overBox.x + overBox.width * 0.5f;
-    DrawTextCentered("GAME OVER", cx, overBox.y + 18.0f, 42,
+    DrawTextCenteredBold("GAME OVER", cx, overBox.y + 18.0f, 42,
                      Color{239, 68, 68, 255});
     DrawTextCentered(TextFormat("Kamu bertahan sampai WAVE %d", wave), cx,
                      overBox.y + 82.0f, 20, WHITE);
@@ -2552,7 +2893,7 @@ void Game::Draw() {
     DrawSciFiPanel(vicBox, Color{250, 204, 21, 255},
                    Fade(Color{15, 23, 42, 255}, 0.95f), 0.1f, 0.5f);
     float cx = vicBox.x + vicBox.width * 0.5f;
-    DrawTextCentered("VICTORY!", cx, vicBox.y + 24.0f, 48,
+    DrawTextCenteredBold("VICTORY!", cx, vicBox.y + 24.0f, 48,
                      Color{250, 204, 21, 255});
     DrawTextCentered("Kamu telah menyelesaikan 50 wave!", cx,
                      vicBox.y + 78.0f, 20, WHITE);
@@ -2688,6 +3029,16 @@ if (alpha > 0.0f) {
         }
       }
   }
+
+  EndTextureMode();
+  // ---- Blit the virtual canvas onto the real window with letterboxing -----
+  // Bars around the canvas are filled with the deep background colour so the
+  // result looks intentional in any aspect ratio.
+  ClearBackground(Design::BG_DARK);
+  Rectangle srcRec{0.0f, 0.0f, (float)canvas.texture.width,
+                   -(float)canvas.texture.height}; // negative = flip V
+  DrawTexturePro(canvas.texture, srcRec, canvasDest, Vector2{0.0f, 0.0f},
+                 0.0f, WHITE);
 
   EndDrawing();
 }
@@ -2949,6 +3300,14 @@ void Game::LoadSettings() {
   windowHeight = j.value("windowHeight", 720);
   highScoreWave = j.value("highScoreWave", 0);
   highScoreMoney = j.value("highScoreMoney", 0);
+
+  // Derive the resolution dropdown index from the saved window size.
+  resIndex = 0;
+  for (int i = 0; i < RES_COUNT; i++) {
+    int w, h;
+    GetResolution(i, w, h);
+    if (w == windowWidth && h == windowHeight) { resIndex = i; break; }
+  }
 }
 
 void Game::SaveSettings() {
@@ -2982,22 +3341,68 @@ void Game::ApplySettings() {
   SetSoundVolume(sndBaseDamage, sfxVolume);
   SetSoundVolume(sndBossWave, sfxVolume);
   SetSoundVolume(sndGameOver, sfxVolume);
+  // Borderless fullscreen: fill the current monitor at its native resolution.
+  // The virtual canvas + letterboxing in Draw() keeps the game undistorted.
   if (fullscreen) {
-    int monitor = GetCurrentMonitor();
-    int w = GetMonitorWidth(monitor);
-    int h = GetMonitorHeight(monitor);
-    SetWindowSize(w, h);
-    ToggleFullscreen();
+    if (!IsWindowFullscreen()) {
+      int monitor = GetCurrentMonitor();
+      SetWindowSize(GetMonitorWidth(monitor), GetMonitorHeight(monitor));
+      ToggleFullscreen();
+    }
   } else {
+    if (IsWindowFullscreen()) ToggleFullscreen();
     SetWindowSize(windowWidth, windowHeight);
   }
+
+  // Center the window when running windowed (nicer first impression).
+  if (!fullscreen) {
+    int monitor = GetCurrentMonitor();
+    int mx = GetMonitorWidth(monitor);
+    int my = GetMonitorHeight(monitor);
+    SetWindowPosition((mx - windowWidth) / 2, (my - windowHeight) / 2);
+  }
+  UpdateCanvasLayout();
 }
 
 void Game::ToggleFullscreen() {
-  fullscreen = !fullscreen;
-  ::ToggleFullscreen();
-  if (!fullscreen) {
+  if (IsWindowFullscreen()) {
+    // Leaving fullscreen: restore the last windowed size and re-center.
+    ::ToggleFullscreen();
     SetWindowSize(windowWidth, windowHeight);
+    int monitor = GetCurrentMonitor();
+    SetWindowPosition((GetMonitorWidth(monitor) - windowWidth) / 2,
+                      (GetMonitorHeight(monitor) - windowHeight) / 2);
+    fullscreen = false;
+  } else {
+    // Entering fullscreen at native monitor resolution.
+    int monitor = GetCurrentMonitor();
+    SetWindowSize(GetMonitorWidth(monitor), GetMonitorHeight(monitor));
+    ::ToggleFullscreen();
+    fullscreen = true;
+  }
+  UpdateCanvasLayout();
+}
+
+// Windowed resolutions offered in the settings menu (all 16:9).
+const char* Game::GetResolutionLabel(int index) {
+  switch (index) {
+    case 0: return "1280 x 720";
+    case 1: return "1366 x 768";
+    case 2: return "1600 x 900";
+    case 3: return "1920 x 1080";
+    case 4: return "2560 x 1440";
+  }
+  return "1280 x 720";
+}
+
+void Game::GetResolution(int index, int& w, int& h) {
+  switch (index) {
+    case 0: w = 1280; h = 720; break;
+    case 1: w = 1366; h = 768; break;
+    case 2: w = 1600; h = 900; break;
+    case 3: w = 1920; h = 1080; break;
+    case 4: w = 2560; h = 1440; break;
+    default: w = 1280; h = 720; break;
   }
 }
 

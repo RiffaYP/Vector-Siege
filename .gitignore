@@ -68,3 +68,10 @@ $RECYCLE.BIN/
 raylib/
 runtimes/
 node_modules/
+
+# ============================================================================
+# Bundled UI font (committed on purpose - needed at runtime)
+# ============================================================================
+!src/fonts/*.ttf
+!src/fonts/OFL.txt
+!fonts/*.ttf

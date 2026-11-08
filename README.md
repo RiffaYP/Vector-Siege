@@ -34,12 +34,15 @@ Pertahankan pangkalan (base) kamu dari gelombang drone, mech, dan colossus yang 
 - 💥 **Sistem crit** — 15% chance untuk damage ×2
 - ⚡ **Kontrol kecepatan game** 1X / 2X / 3X
 - 💾 **Save / Load** berbasis JSON (`F5` / `F9`)
-- ⚙️ **Pengaturan volume** (Master / SFX / Music) + fullscreen
+- ⚙️ **Pengaturan volume** (Master / SFX / Music)
+- 🖥️ **Fullscreen & resolusi** — dropdown resolusi (720p–1440p) + fullscreen native, UI tetap proporsional di monitor apa pun (letterbox scaling)
+- 🔤 **Font kustom** (Rajdhani) dengan teks yang terbaca jelas di semua ukuran
 - ↩️ **Undo penempatan** tower terakhir dengan refund penuh (`Z`)
 - 🏆 **High score** tersimpan otomatis
 - ✨ **Juice**: particle burst, shockwave, floating text, ambient particles, slow-motion impact, hit-pause
 - 🌅 **Sky dinamis** yang berubah dari pagi ke malam seiring wave
 - 🎨 **UI sci-fi** lengkap: tooltip, tutorial overlay, pause menu, dialog konfirmasi
+- 🧭 **Penanda arah** "MUSUH MUNCUL DI SINI" & "BASE KAMU" untuk pemain baru
 
 ---
 
@@ -306,8 +309,17 @@ Jalur berbelok 4 kali. Tempat terbaik adalah **di dalam tikungan** karena satu t
 - **Master Volume** — volume keseluruhan
 - **SFX Volume** — efek suara (tembakan, ledakan, dll.)
 - **Music Volume** — (slider tersedia; game ini belum memutar musik latar)
-- **Fullscreen** — aktif/nonaktif
+- **Resolution** — dropdown resolusi jendela (1280×720, 1366×768, 1600×900, 1920×1080, 2560×1440), berlaku langsung tanpa restart
+- **Fullscreen** — aktif/nonaktif (native monitor resolution)
 - **High Score** — tersimpan otomatis saat game over / victory
+
+### Cara kerja Fullscreen & Resolusi
+
+Game selalu dirender ke **kanvas virtual tetap 1280×720**, lalu di-*scale* secara proporsional (letterbox/pillarbox) ke ukuran jendela atau layar sebenarnya. Artinya:
+
+- Di **fullscreen** monitor apa pun, UI tidak akan meleset atau terdistorsi.
+- Posisi klik mouse otomatis dipetakan ke koordinat kanvas yang benar.
+- Rasio selain 16:9 (mis. 4:3) akan menampilkan bilah hitam di kiri-kanan / atas-bawah, bukan gambar yang teregang.
 
 ---
 
@@ -321,12 +333,16 @@ src/
 ├── Enemy.h / .cpp    # Enemy stats, path following
 ├── Bullet.h / .cpp   # Projectile, collision, AoE, particles
 ├── Renderer3D.h/.cpp # Semua rendering 3D prosedural
-└── json.hpp          # nlohmann/json (dependency, single-header)
+├── json.hpp          # nlohmann/json (dependency, single-header)
+└── fonts/            # Font UI (Rajdhani) + lisensi OFL
+fonts/                # Salinan font di samping game.exe (runtime)
 ```
 
 ### Detail Teknis
 
 - **Kamera:** orthographic top-down, pitch 80°, fovy 32,4°
+- **Virtual canvas:** render tetap ke 1280×720 lalu letterbox-scale ke jendela
+- **Font UI:** Rajdhani (TrueType), di-load via `LoadFontEx`, di-scale bilinear
 - **Koordinat:** pemetaan 2D gameplay ↔ 3D world memakai skala `0.045`
 - **Mouse picking:** ray-cast dari kursor ke bidang `Y = 0`
 - **Jalur:** 9 waypoint, murni horizontal/vertikal
@@ -346,17 +362,29 @@ src/
 | Masalah | Solusi |
 |---|---|
 | `libraylib.dll not found` | Salin DLL dari `C:\msys64\ucrt64\bin\` atau tambahkan ke `PATH` |
+| Teks UI pakai font kotak-kotak | Folder `fonts/` (atau `src/fonts/`) tidak ditemukan — jalankan game dari root repo, atau salin folder `fonts/` ke samping `game.exe` |
 | Game tidak merespons saat dibuka | Tekan `ENTER` — game menunggu kamu memulai wave |
 | Tidak ada suara | Cek **Settings → Master & SFX Volume**, dan pastikan device audio aktif |
 | Save tidak ditemukan saat `F9` | Pastikan pernah menekan `F5`, dan jalankan game dari folder yang sama |
 | Layar hitam / crash saat start | Update driver GPU; raylib butuh dukungan OpenGL 3.3+ |
-| Resolusi aneh | Hapus `settings.json`, jalankan ulang (akan kembali ke 1280×720) |
+| Resolusi aneh / UI meleset | Hapus `settings.json`, jalankan ulang (akan kembali ke 1280×720) |
+| Gambar ter-stretch di fullscreen | Tidak seharusnya terjadi — game memakai letterbox scaling. Jika terjadi, laporkan sebagai bug |
 
 ---
 
 ## Lisensi
 
-Kode proyek ini bebas digunakan untuk pembelajaran. **[raylib](https://github.com/raysan5/raylib)** berlisensi `zlib`, dan **[nlohmann/json](https://github.com/nlohmann/json)** berlisensi `MIT` — keduanya kompatibel dengan penggunaan bebas.
+Kode proyek ini bebas digunakan untuk pembelajaran.
+
+**Dependensi pihak ketiga:**
+
+| Komponen | Lisensi |
+|---|---|
+| [raylib](https://github.com/raysan5/raylib) | `zlib` |
+| [nlohmann/json](https://github.com/nlohmann/json) | `MIT` |
+| [Rajdhani font](https://fonts.google.com/specimen/Rajdhani) | `SIL Open Font License 1.1` — teks lisensi lengkap ada di [`src/fonts/OFL.txt`](src/fonts/OFL.txt) |
+
+Rajdhani dibuat oleh Indian Type Foundry dan didistribusikan di bawah OFL, sehingga aman untuk dibundel dan didistribusikan kembali bersama game ini.
 
 ---
 
